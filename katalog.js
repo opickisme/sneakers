@@ -3,7 +3,7 @@
   const cfg = Object.assign({
     store: 'YEKA',
     logoText: '',
-    wa: '6285163233482',
+    wa: '6281234567890',
     categories: ['Semua', 'Sepatu', 'Pakaian', 'Tas', 'Aksesoris'],
     sliderIntervalMs: 3800
   }, window.STORE_CFG || {});
@@ -34,7 +34,6 @@
   let cart = readCart();
   let allProducts = [];
   let activeCat = 'Semua';
-  let activeProduct = null;
   let selectedModalSize = '';
   let sliderTimer = null;
 
@@ -77,7 +76,7 @@
     const meta = {};
     const descLines = [];
     lines.forEach(line => {
-      const m = line.match(/^(kategori|category|merk|brand|harga|price|hargacoret|diskon|size|ukuran|warna|color|warnaCount|badge|tag|hex|deskripsi|desc)\s*:\s*(.+)$/i);
+      const m = line.match(/^(kategori|category|merk|brand|harga|price|hargacoret|diskon|size|ukuran|warna|color|badge|tag|hex|deskripsi|desc)\s*:\s*(.+)$/i);
       if (m) {
         const key = m[1].toLowerCase().replace(/\s+/g, '');
         meta[key] = m[2].trim();
@@ -123,11 +122,10 @@
     };
   }
 
-  // ================= SLIDER OTOMATIS 3 POSTINGAN TERBARU =================
-  function renderAutoSlider() {
-    const wrap = $('#autoSlider');
-    const track = $('#autoSlidesTrack');
-    const dotsEl = $('#autoSliderDots');
+  function renderHeroSlider() {
+    const wrap = $('#heroSlider');
+    const track = $('#heroTrack');
+    const dotsEl = $('#heroDots');
     if (!wrap || !track) return;
 
     const latestThree = allProducts.slice(0, 3);
@@ -137,29 +135,37 @@
     }
 
     wrap.hidden = false;
-    track.innerHTML = latestThree.map(p => `
-      <div class="auto-slide" data-open-id="${esc(p.id)}">
-        <div class="auto-slide-text">
-          <span class="auto-slide-tag">Terbaru · ${esc(p.category)}</span>
-          <h2 class="auto-slide-title">${esc(p.name)}</h2>
-          <p class="auto-slide-sub">${rupiah(p.price)} · ${esc(p.colorLabel)}</p>
+    track.innerHTML = latestThree.map(p => {
+      const media = p.img
+        ? `<img src="${esc(p.img)}" alt="${esc(p.name)}">`
+        : `<div class="hero-fallback">${fallbackVisual(p)}</div>`;
+      return `
+        <div class="hero-slide" data-open-id="${esc(p.id)}">
+          ${media}
+          <div class="hero-overlay">
+            <span class="hero-badge">Terbaru · ${esc(p.category)}</span>
+            <h2 class="hero-title">${esc(p.name)}</h2>
+            <p class="hero-sub">${rupiah(p.price)} · ${esc(p.colorLabel)}</p>
+          </div>
         </div>
-        <div class="auto-slide-thumb">${visualHTML(p)}</div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
-    track.querySelectorAll('.auto-slide-thumb img').forEach((img, idx) => {
-      img.onerror = () => { img.outerHTML = fallbackVisual(latestThree[idx] || {}); };
+    track.querySelectorAll('.hero-slide img').forEach((img, idx) => {
+      img.onerror = () => {
+        const prod = latestThree[idx] || {};
+        img.outerHTML = `<div class="hero-fallback">${fallbackVisual(prod)}</div>`;
+      };
     });
 
     if (dotsEl) {
       dotsEl.innerHTML = latestThree.map((_, i) =>
-        `<span class="auto-dot${i === 0 ? ' on' : ''}"></span>`
+        `<span class="hero-dot${i === 0 ? ' on' : ''}"></span>`
       ).join('');
     }
 
     track.onclick = e => {
-      const slideEl = e.target.closest('.auto-slide');
+      const slideEl = e.target.closest('.hero-slide');
       if (slideEl && slideEl.dataset.openId) {
         openProductModal(slideEl.dataset.openId);
       }
@@ -173,7 +179,7 @@
         idx = (idx + 1) % latestThree.length;
         track.style.transform = `translateX(-${idx * 100}%)`;
         if (dotsEl) {
-          dotsEl.querySelectorAll('.auto-dot').forEach((d, i) => d.classList.toggle('on', i === idx));
+          dotsEl.querySelectorAll('.hero-dot').forEach((d, i) => d.classList.toggle('on', i === idx));
         }
       }, interval);
     }
@@ -271,30 +277,33 @@
     const modal = $('#productModal');
     if (!p || !modal) return;
 
-    activeProduct = p;
     selectedModalSize = p.sizes.length === 1 ? String(p.sizes[0]) : '';
 
     $('#detailTitle').textContent = p.name;
     $('#detailBody').innerHTML = `
-      <div class="detail-grid">
+      <div class="detail-stack">
         <div class="detail-img">${visualHTML(p)}</div>
-        <div class="detail-info">
-          <p class="p-sub">${esc(p.category)} · ${esc(p.colors.join(', '))}</p>
-          <div class="p-price-row">
-            <span class="p-price" style="font-size:1.15rem">${rupiah(p.price)}</span>
+        <div class="detail-head">
+          <div>
+            <p class="p-sub">${esc(p.category)} · ${esc(p.colors.join(', '))}</p>
+          </div>
+          <div class="p-price-row" style="margin:0">
+            <span class="p-price" style="font-size:1.05rem">${rupiah(p.price)}</span>
             ${p.strikePrice > p.price ? `<span class="p-strike">${rupiah(p.strikePrice)}</span>` : ''}
           </div>
-          <span style="font-size:.82rem;font-weight:700;margin-top:4px">Pilih Ukuran / Size:</span>
+        </div>
+        <div>
+          <span class="detail-label">Pilih Size:</span>
           <div class="sizes">
             ${p.sizes.map(sz =>
               `<button type="button" class="sz-btn${String(sz) === selectedModalSize ? ' on' : ''}" data-sz="${esc(sz)}">${esc(sz)}</button>`
             ).join('')}
           </div>
           <p class="hint" id="detailHint"></p>
-          <button type="button" class="primary-btn" id="detailAddBtn">Tambah ke Keranjang</button>
         </div>
+        <button type="button" class="primary-btn" id="detailAddBtn">Tambah ke Keranjang</button>
+        ${p.desc ? `<div class="detail-desc">${esc(p.desc)}</div>` : ''}
       </div>
-      ${p.desc ? `<div class="detail-desc">${esc(p.desc)}</div>` : ''}
     `;
 
     const dImg = $('#detailBody img');
@@ -312,7 +321,7 @@
 
     $('#detailAddBtn').onclick = () => {
       if (p.sizes.length > 1 && !selectedModalSize) {
-        $('#detailHint').textContent = 'Pilih ukuran dulu ya.';
+        $('#detailHint').textContent = 'Pilih size dulu ya.';
         return;
       }
       addToCart(p, selectedModalSize || p.sizes[0]);
@@ -331,7 +340,7 @@
     if (!listEl || !totalEl) return;
 
     if (!cart.length) {
-      listEl.innerHTML = '<p class="empty" style="padding:18px 8px">Keranjang masih kosong. Klik tombol <b>+</b> pada produk.</p>';
+      listEl.innerHTML = '<p class="empty" style="padding:14px 8px">Keranjang masih kosong. Tekan tombol <b>+</b> pada produk.</p>';
       totalEl.textContent = rupiah(0);
       if (checkoutBtn) checkoutBtn.disabled = true;
       return;
@@ -479,7 +488,7 @@
       console.error('Feed error:', err);
       allProducts = [];
     }
-    renderAutoSlider();
+    renderHeroSlider();
     renderCategories();
     renderGrid();
   }
